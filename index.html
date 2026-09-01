@@ -1,0 +1,225 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="Periodic pattern lab: reaction–diffusion, Kuramoto, Young, and flow fields on square and hexagonal tiles.">
+  <title>Periodic Patterns — square · hexagon</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <header class="site-header">
+    <a class="wordmark" href="#" aria-label="Periodic Patterns home">
+      <span class="mark" aria-hidden="true"></span>
+      <span>Periodic Patterns</span>
+    </a>
+    <span class="header-note">Square · hexagon · wallpaper rules</span>
+  </header>
+
+  <main>
+    <section class="workspace" aria-label="Periodic pattern lab">
+      <div class="preview-column">
+        <div class="compare-grid">
+          <article class="canvas-card">
+            <div class="canvas-toolbar">
+              <div>
+                <span class="toolbar-label">Unit tile</span>
+                <span class="render-status" id="statusTile" role="status">Ready</span>
+              </div>
+            </div>
+            <div class="canvas-stage">
+              <canvas id="tile" width="512" height="512" aria-label="Fundamental domain of the pattern"></canvas>
+            </div>
+            <div class="canvas-footer">
+              <span><i class="status-dot" id="gpuDot"></i> <span id="gpuLabel">GPU</span></span>
+              <span id="tileMeta">128 × 128</span>
+            </div>
+          </article>
+
+          <article class="canvas-card">
+            <div class="canvas-toolbar">
+              <div>
+                <span class="toolbar-label">Wallpaper</span>
+                <span class="render-status" id="statusWall">Copies under the attachment rule</span>
+              </div>
+              <div class="segmented" aria-label="Grid overlay">
+                <button class="segment" id="gridButton" type="button" aria-pressed="false">Grid &amp; arrows</button>
+              </div>
+            </div>
+            <div class="canvas-stage">
+              <canvas id="wall" width="512" height="512" aria-label="Tessellation of the unit tile"></canvas>
+            </div>
+            <div class="canvas-footer">
+              <span>Click either canvas to seed</span>
+              <span id="stepMeta">0 steps</span>
+            </div>
+          </article>
+        </div>
+
+        <section class="math-card">
+          <div class="math-heading">
+            <span class="math-index">01</span>
+            <div>
+              <h2>The unit is the tile</h2>
+              <p>How neighboring copies attach — not a 4D surface.</p>
+            </div>
+          </div>
+          <div class="formula">
+            <strong>square: 4 sides, two pairs of opposite edges</strong>
+            <strong>hexagon: 6 sides, three pairs of opposite edges</strong>
+          </div>
+          <p class="math-copy">The dropdown is only the wallpaper rule: how the next copy of the tile is placed so the simulation’s neighbors wrap. Translate means a plain copy. Flip means that copy is mirrored before it attaches. Rotate 180° and the mirror modes are the other ways a square or hexagon can meet itself. Matching edge pairs share a color; arrowheads on those edges show whether the identification preserves orientation or reverses it. The chemistry never leaves the tile; it just sees those copies as its periodic boundary.</p>
+        </section>
+
+        <section class="math-card">
+          <div class="math-heading">
+            <span class="math-index">02</span>
+            <div>
+              <h2>Generators that wrap</h2>
+              <p>Every neighbor lookup uses the attachment rule, so the field tiles.</p>
+            </div>
+          </div>
+          <div class="formula">
+            <strong>∂A/∂t = Dₐ∇²A − AB² + f(1 − A)</strong>
+            <strong>∂B/∂t = Dᵦ∇²B + AB² − (k + f)B</strong>
+          </div>
+          <p class="math-copy">Scale is the spatial frequency of the Laplacian: higher scale packs more features into the same tile. Hexagon neighbors are the six axial steps; opposite hex sides are one full period apart, so the honeycomb is seamless. Gray–Scott runs on the GPU when float render targets are available. Kuramoto, Young’s kernel, and the periodic flow field stay on the CPU.</p>
+        </section>
+      </div>
+
+      <aside class="controls-card">
+        <div class="controls-header">
+          <div>
+            <span class="toolbar-label">Shared experiment</span>
+            <h1>Shape the tile</h1>
+          </div>
+          <button class="icon-button" id="resetButton" type="button" title="Reset all simulation parameters" aria-label="Reset">↺</button>
+        </div>
+
+        <form id="controls">
+          <fieldset>
+            <legend>Tile</legend>
+            <label class="control">
+              <span>Lattice</span>
+              <select id="lattice" title="Shape of the unit tile. Square uses an 8-neighbor stencil; hexagon uses six axial neighbors and displays a hexagonal domain.">
+                <option value="square">Square</option>
+                <option value="hex">Hexagon</option>
+              </select>
+              <small class="control-note" id="latticeNote">The fundamental domain is a square. Wallpaper is a 3 × 3 of copies.</small>
+            </label>
+            <label class="control">
+              <span>How copies attach</span>
+              <select id="topology" title="Wallpaper rule for opposite sides: translate, flip a pair, rotate 180°, or mirror neighboring copies."></select>
+            </label>
+            <label class="control">
+              <span>Generator</span>
+              <select id="generator" title="Which pattern-forming system runs on the tile."></select>
+            </label>
+            <label class="control" id="presetControl">
+              <span>Preset</span>
+              <select id="preset" title="Named Gray–Scott (feed, kill) pairs."></select>
+            </label>
+          </fieldset>
+
+          <fieldset>
+            <legend>Field</legend>
+            <label class="control">
+              <span>Scale <output id="scaleOut">1.00</output></span>
+              <input id="scale" type="range" min="0.35" max="4" step="0.05" value="1" title="Spatial frequency. Higher scale makes smaller features, so more of them fit on the tile. Restarts the simulation.">
+            </label>
+            <label class="control">
+              <span>Resolution</span>
+              <select id="size" title="Simulation grid size. Higher is sharper and slower. 1024² is GPU-heavy for Gray–Scott and slow for Young.">
+                <option value="128">128</option>
+                <option value="256" selected>256</option>
+                <option value="512">512</option>
+                <option value="768">768</option>
+                <option value="1024">1024</option>
+              </select>
+            </label>
+            <label class="control">
+              <span>Seed <output id="seedOut">1</output></span>
+              <input id="seed" type="number" min="0" max="999999" value="1" title="Random seed for the initial condition. Same seed and parameters replay the same start.">
+            </label>
+            <label class="control">
+              <span>Steps / frame <output id="speedOut">8</output></span>
+              <input id="speed" type="range" min="1" max="48" step="1" value="8" title="How many simulation steps run each animation frame. Does not restart. Higher is faster evolution, heavier per frame.">
+            </label>
+            <button class="wide-button" id="speedMax" type="button" title="Set steps per frame to the maximum (48).">Max steps / frame</button>
+            <label class="control">
+              <span>Brush <output id="brushOut">5</output></span>
+              <input id="brush" type="range" min="1" max="24" step="1" value="5" title="Radius in cells when you click a canvas to seed or perturb the field.">
+            </label>
+            <div class="button-pair">
+              <button class="wide-button" id="run" type="button">Pause</button>
+              <button class="wide-button" id="step" type="button">Step</button>
+            </div>
+            <div class="button-pair">
+              <button class="wide-button" id="restart" type="button">Restart</button>
+              <button class="wide-button" id="random" type="button">New seed</button>
+            </div>
+          </fieldset>
+
+          <fieldset>
+            <legend>Chemistry</legend>
+            <p class="fieldset-note" id="chemNote">Parameters for the current generator. Changing any of these restarts the run.</p>
+            <div id="params"></div>
+          </fieldset>
+
+          <fieldset>
+            <legend>Finish</legend>
+            <label class="control">
+              <span>View</span>
+              <select id="view" title="Which field to draw: A, B, or their difference. Display only — does not restart.">
+                <option value="a">A</option>
+                <option value="b">B</option>
+                <option value="mix">A − B</option>
+              </select>
+            </label>
+            <label class="control">
+              <span>Palette</span>
+              <select id="palette" title="Color map for the chosen field. Display only.">
+                <option value="ink">Bone &amp; ink</option>
+                <option value="lichen">Lichen</option>
+                <option value="ember">Ember</option>
+                <option value="ocean">Deep ocean</option>
+                <option value="mineral">Mineral</option>
+                <option value="aurora">Aurora</option>
+                <option value="mono">Monochrome</option>
+              </select>
+            </label>
+            <label class="control">
+              <span>Contrast <output id="contrastOut">1.15</output></span>
+              <input id="contrast" type="range" min="0.4" max="2.8" step="0.05" value="1.15" title="Stretches values around mid-gray. Display only — does not restart.">
+            </label>
+            <label class="switch-row" title="Swap light and dark in the display. Does not restart.">
+              <span><strong>Invert</strong><small>Swap light and dark</small></span>
+              <input id="invert" type="checkbox">
+              <i aria-hidden="true"></i>
+            </label>
+            <label class="switch-row" title="Force every pixel to black or white using the cutoff below. Display only.">
+              <span><strong>Threshold</strong><small>No gray — only black or white</small></span>
+              <input id="thresholdOn" type="checkbox">
+              <i aria-hidden="true"></i>
+            </label>
+            <label class="control" id="thresholdControl" hidden>
+              <span>Cutoff <output id="cutoffOut">0.50</output></span>
+              <input id="cutoff" type="range" min="0.05" max="0.95" step="0.01" value="0.5" title="Values above this become white; below become black. Used only when Threshold is on.">
+            </label>
+          </fieldset>
+
+          <fieldset>
+            <legend>Output</legend>
+            <div class="button-pair">
+              <button class="wide-button" id="png-tile" type="button">PNG tile</button>
+              <button class="export-button" id="png-wall" type="button">PNG wallpaper <span>↗</span></button>
+            </div>
+          </fieldset>
+        </form>
+      </aside>
+    </section>
+  </main>
+
+  <script type="module" src="app.js"></script>
+</body>
+</html>
